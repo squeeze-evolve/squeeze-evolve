@@ -1,0 +1,59 @@
+# ── Benchmark: GPQA-Diamond ────────────────────────────────────────────
+# 198 expert-level multiple-choice questions. Answers are a letter in \boxed{}.
+# Copy this file, fill in model endpoints, and run:
+#   squeeze-evolve-client --config <this_file> --input data/gpqa_diamond/test.parquet
+
+run_name: gpqa_diamond_example
+
+routing:
+  k: 4                            # group size
+  population: 16                  # candidates per problem (loop 0)
+  groups: 16                      # groups per problem per loop
+  loops: 10                       # evolutionary iterations
+  confidence_percentiles: [10.0]  # N-1 thresholds for N models
+  fitness: confidence             # confidence | diversity
+  selection: uniform              # uniform | weighted
+  selection_temperature: 1.0      # temperature for weighted selection
+  update: replace                 # replace | accumulate
+  lite_fraction: 0.0              # fraction of easiest groups → lite agg
+  lite_method: majority           # majority | random
+  recombination: gpqa_diamond-aggregate        # aggregate | synthesize
+  evaluation: gpqa_diamond-boxed_math          # boxed_math | exact_match | none
+  task: gpqa_diamond              # math | gpqa_diamond
+  generation_batch_size: 480
+  seed: 1234
+
+models:                           # ordered cheapest → most expensive
+  - name: <cheap_model>
+    base_url: http://localhost:8001/v1
+    api_key: EMPTY
+    endpoint: completions           # completions | chat
+    max_tokens: 16384
+    temperature: 1.0
+    top_p: 1.0
+    max_concurrency: 480
+    seed: 1234
+
+  - name: <expensive_model>
+    base_url: http://localhost:8000/v1
+    api_key: EMPTY
+    endpoint: completions           # completions | chat
+    max_tokens: 16384
+    temperature: 1.0
+    top_p: 1.0
+    max_concurrency: 480
+    seed: 1234
+
+scoring_model:
+  name: <scoring_model>
+  base_url: http://localhost:8001/v1
+  api_key: EMPTY
+  endpoint: completions
+  max_tokens: 1
+  max_concurrency: 480
+  prompt_logprobs: true
+  vllm_extensions: true
+
+resume: true
+checkpoint_dir: ./artifacts/gpqa_diamond/example/checkpoints
+metrics_path: ./artifacts/gpqa_diamond/example/metrics.json

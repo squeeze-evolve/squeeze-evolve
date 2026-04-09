@@ -1,0 +1,46 @@
+# python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
+*.pyzwz
+*.pyzwzw
+
+# build / packaging artifacts
+*.egg-info/
+dist/
+build/
+.eggs/
+uv.lock
+
+# virtual environments
+.venv/
+venv/
+
+# local cache/temp
+cache/
+
+# notebook checkpoints
+.ipynb_checkpoints/
+
+# logs
+logs/
+server_logs/
+
+# macOS
+.DS_Store
+
+# large binary / data files
+*.npz
+*.pkl
+*.ipynb
+*.pdf
+*.log
+.pytest_cache/
+artifacts/
+demo/
+example_run/

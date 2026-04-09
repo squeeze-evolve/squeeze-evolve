@@ -1,0 +1,62 @@
+# ── Benchmark: AIME 2025 (gpt-oss-120b single model) ──────────────────
+# 30 competition math problems. Answers are integers in \boxed{}.
+
+run_name: aime25_120b
+
+routing:
+  k: 4                            # group size
+  population: 16                  # candidates per problem (loop 0)
+  groups: 16                      # groups per problem per loop
+  loops: 10                       # evolutionary iterations
+  confidence_percentiles: [10.0]  # N-1 thresholds for N models
+  fitness: confidence             # confidence | diversity
+  selection: uniform              # uniform | weighted
+  selection_temperature: 1.0      # temperature for weighted selection
+  update: replace                 # replace | accumulate
+  lite_fraction: 0.0              # fraction of easiest groups → lite agg
+  lite_method: majority           # majority | random
+  recombination: aime25-aggregate        # aggregate | synthesize
+  evaluation: aime25-boxed_math          # boxed_math | exact_match | none
+  task: math                      # math | gpqa_diamond
+  generation_batch_size: 480
+  seed: 1234
+
+models:                           # ordered cheapest → most expensive
+  - name: /data/mmaheswaran/sqt/hf_models/gpt-oss-120b
+    base_url: http://172.27.21.55:8000/v1
+    api_key: EMPTY
+    endpoint: completions
+    max_tokens: 16384
+    temperature: 1.0
+    top_p: 1.0
+    max_concurrency: 480
+    reasoning_effort: medium
+    seed: 1234
+
+  - name: /data/mmaheswaran/sqt/hf_models/gpt-oss-120b
+    base_url: http://172.27.21.55:8000/v1
+    api_key: EMPTY
+    endpoint: completions
+    max_tokens: 16384
+    temperature: 1.0
+    top_p: 1.0
+    max_concurrency: 480
+    reasoning_effort: medium
+    seed: 1234
+
+scoring_model:
+  name: /data/mmaheswaran/sqt/hf_models/gpt-oss-120b
+  base_url: http://172.27.21.55:8000/v1
+  api_key: EMPTY
+  endpoint: completions
+  max_tokens: 1
+  max_concurrency: 480
+  prompt_logprobs: 20
+  vllm_extensions: true
+
+retry:
+  request_timeout_seconds: 600
+
+resume: true
+checkpoint_dir: ./artifacts/aime25/example_120b/checkpoints
+metrics_path: ./artifacts/aime25/example_120b/metrics.json

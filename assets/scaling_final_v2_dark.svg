@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 1500 820" xmlns="http://www.w3.org/2000/svg" font-family="'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif">
+      <defs>
+        <marker id="a1" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+          <polygon points="0 0,10 4,0 8" fill="#f59e0b"/>
+        </marker>
+        <marker id="a2" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+          <polygon points="0 0,10 4,0 8" fill="#34d399"/>
+        </marker>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="5" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <!-- Background -->
+      <rect width="1500" height="820" fill="#000"/>
+
+      <!-- ============================================================ -->
+      <!-- LEFT: CONCEPTUAL SCALING CURVES                              -->
+      <!-- ============================================================ -->
+
+      <!-- Axes -->
+      <line x1="100" y1="754" x2="820" y2="754" stroke="#e5e5e5" stroke-width="1.5"/>
+      <line x1="100" y1="100" x2="100" y2="754" stroke="#e5e5e5" stroke-width="1.5"/>
+      <polygon points="820,754 808,749 808,759" fill="#e5e5e5"/>
+      <polygon points="100,100 95,110 105,110" fill="#e5e5e5"/>
+
+      <!-- Axis labels -->
+      <text transform="rotate(-90)" x="-427" y="38" font-size="32" fill="#e5e5e5" text-anchor="middle" font-weight="600" letter-spacing="0.5">Capability</text>
+      <text x="460" y="800" font-size="32" fill="#e5e5e5" text-anchor="middle" font-weight="600" letter-spacing="0.5">log(total cost)</text>
+
+      <!-- Curve 1: Verifier-based (rightmost) -->
+      <path d="M 400,742 C 496,664 604,553 664,479 S 760,329 814,266"
+            fill="none" stroke="#e5e5e5" stroke-width="3.5" opacity="0.9"/>
+
+      <!-- Curve 2: Verifier-free single model (middle) -->
+      <path d="M 268,742 C 376,662 484,547 532,479 S 652,316 748,255"
+            fill="none" stroke="#a8a29e" stroke-width="3" stroke-dasharray="12,8" opacity="0.45"/>
+
+      <!-- Curve 3: Squeeze Evolve (leftmost) -->
+      <path d="M 118,745 C 232,664 346,547 400,479 S 544,306 652,226"
+            fill="none" stroke="#34d399" stroke-width="5" filter="url(#glow)"/>
+
+      <!-- Dashed horizontal: same capability level -->
+      <line x1="100" y1="479" x2="682" y2="479" stroke="#444" stroke-width="1.2" stroke-dasharray="8,6"/>
+
+
+      <!-- Three dots -->
+      <circle cx="664" cy="479" r="11" fill="#e5e5e5" stroke="#000" stroke-width="4" opacity="0.9"/>
+      <circle cx="532" cy="479" r="11" fill="#a8a29e" stroke="#000" stroke-width="4" opacity="0.7"/>
+      <circle cx="400" cy="479" r="11" fill="#34d399" stroke="#000" stroke-width="4"/>
+
+      <!-- Arrow 1: Eliminate verification -->
+      <line x1="650" y1="479" x2="552" y2="479" stroke="#f59e0b" stroke-width="2.5"/>
+      <polygon points="548,479 558,473 558,485" fill="#f59e0b"/>
+      <text x="599" y="440" font-size="24" fill="#f59e0b" text-anchor="middle" font-weight="600">Eliminate verification</text>
+
+      <!-- Arrow 2: Multi-model orchestration -->
+      <line x1="518" y1="479" x2="420" y2="479" stroke="#34d399" stroke-width="2.5"/>
+      <polygon points="416,479 426,473 426,485" fill="#34d399"/>
+      <text x="440" y="527" font-size="24" fill="#34d399" text-anchor="middle" font-weight="600">Multi-model orchestration</text>
+
+      <!-- Squeeze Evolve label -->
+      <text x="118" y="155" font-size="30" fill="#34d399" font-weight="700">Squeeze Evolve</text>
+      <text x="118" y="187" font-size="22" fill="#34d399" font-weight="400" opacity="0.8">verifier-free, multi-model orchestration</text>
+
+      <!-- Verifier-free label -->
+      <text font-size="24" fill="#e5e5e5" font-weight="500" opacity="0.6" text-anchor="end">
+        <tspan x="814" y="155">Verifier-free evolution</tspan>
+        <tspan x="814" dy="26" font-weight="400" font-size="20">(single model)</tspan>
+      </text>
+
+      <!-- Verifier-based label -->
+      <text font-size="24" fill="#e5e5e5" font-weight="600" opacity="0.9" text-anchor="end">
+        <tspan x="814" y="593">Verifier-based evolution</tspan>
+        <tspan x="814" dy="26" font-weight="400" font-size="20" fill="#e5e5e5">(incl. verification cost)</tspan>
+      </text>
+
+      <!-- ============================================================ -->
+      <!-- VERTICAL DIVIDER                                             -->
+      <!-- ============================================================ -->
+      <line x1="850" y1="100" x2="850" y2="800" stroke="#333" stroke-width="1"/>
+
+      <!-- ============================================================ -->
+      <!-- RIGHT: KEY RESULTS                                           -->
+      <!-- ============================================================ -->
+
+      <!-- Section header -->
+      <text x="885" y="128" font-size="26" fill="#e5e5e5" font-weight="600" letter-spacing="1.5">KEY RESULTS</text>
+
+      <!-- Headline numbers -->
+      <text x="885" y="186" font-size="56" fill="#34d399" font-weight="700">~3x</text>
+      <text x="990" y="186" font-size="24" fill="#e5e5e5" font-weight="600">lower cost</text>
+
+      <text x="1140" y="186" font-size="56" fill="#34d399" font-weight="700">~10x</text>
+      <text x="1270" y="186" font-size="24" fill="#e5e5e5" font-weight="600">throughput</text>
+
+      <!-- Thin separator -->
+      <line x1="885" y1="214" x2="1480" y2="214" stroke="#333" stroke-width="1.2"/>
+
+      <!-- ===== ARC-AGI-V2 BAR PLOT ===== -->
+      <g transform="translate(885, 250)">
+        <text x="0" y="0" font-size="30" fill="#e5e5e5" font-weight="600">ARC-AGI-V2</text>
+
+        <text x="0" y="36" font-size="24" fill="#e5e5e5" font-weight="700">Squeeze Evolve</text>
+        <rect x="0" y="44" width="380" height="32" rx="5" fill="#34d399"/>
+        <text x="396" y="66" font-size="24" fill="#e5e5e5" font-weight="700">97.5%</text>
+
+        <text x="0" y="104" font-size="24" fill="#e5e5e5" font-weight="500">GPT-5.4-Pro (xhigh)</text>
+        <rect x="0" y="112" width="359" height="32" rx="5" fill="#a8a29e"/>
+        <text x="396" y="134" font-size="24" fill="#e5e5e5" font-weight="400">92.2%</text>
+
+        <!-- Cost sub-row -->
+        <text x="0" y="170" font-size="20" fill="#e5e5e5" font-weight="600">Cost per task:</text>
+        <text x="148" y="170" font-size="20" fill="#34d399" font-weight="700">$7.74</text>
+        <text x="210" y="170" font-size="20" fill="#e5e5e5" font-weight="500">vs</text>
+        <text x="240" y="170" font-size="20" fill="#a8a29e" font-weight="700">$17.60</text>
+        <text x="316" y="170" font-size="20" fill="#34d399" font-weight="700" font-style="italic">(2.3x cheaper)</text>
+      </g>
+
+      <!-- ===== MMMU-Pro BAR PLOT ===== -->
+      <g transform="translate(885, 452)">
+        <text x="0" y="0" font-size="30" fill="#e5e5e5" font-weight="600">MMMU-Pro</text>
+
+        <text x="0" y="36" font-size="24" fill="#e5e5e5" font-weight="700">Squeeze Evolve</text>
+        <rect x="0" y="44" width="377" height="32" rx="5" fill="#34d399"/>
+        <text x="396" y="66" font-size="24" fill="#e5e5e5" font-weight="700">79.1%</text>
+
+        <text x="0" y="104" font-size="24" fill="#e5e5e5" font-weight="500">Claude Opus 4.6</text>
+        <rect x="0" y="112" width="352" height="32" rx="5" fill="#a8a29e"/>
+        <text x="396" y="134" font-size="24" fill="#e5e5e5" font-weight="400">73.9%</text>
+      </g>
+
+      <!-- ===== BabyVision BAR PLOT ===== -->
+      <g transform="translate(885, 628)">
+        <text x="0" y="0" font-size="30" fill="#e5e5e5" font-weight="600">BabyVision</text>
+
+        <text x="0" y="36" font-size="24" fill="#e5e5e5" font-weight="700">Squeeze Evolve</text>
+        <rect x="0" y="44" width="371" height="32" rx="5" fill="#34d399"/>
+        <text x="396" y="66" font-size="24" fill="#e5e5e5" font-weight="700">41.6%</text>
+
+        <text x="0" y="104" font-size="24" fill="#e5e5e5" font-weight="500">Kimi2.5-1T-A32B</text>
+        <rect x="0" y="112" width="325" height="32" rx="5" fill="#a8a29e"/>
+        <text x="396" y="134" font-size="24" fill="#e5e5e5" font-weight="400">36.5%</text>
+      </g>
+
+    </svg>

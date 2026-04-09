@@ -1,0 +1,3 @@
+[submodule "external/vllm"]
+	path = external/vllm
+	url = git@github.com:squeeze-evolve/vllm.git
