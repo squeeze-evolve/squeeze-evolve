@@ -1,0 +1,64 @@
+# ── Benchmark: BabyVision ───────────────────────────────────────────────
+# Visual QA benchmark with single-image questions.
+# Answers are extracted from \boxed{} and verified via LLM-as-judge.
+#
+# NOTE: Multimodal benchmarks do NOT support fitness-based routing.
+# Use a single model only (no multi-model routing).
+#
+# Prepare data first:
+#   python benchmarks/prepare_data.py --benchmark babyvision
+#
+# Run:
+#   squeeze-evolve-client --config <this_file> --input data/babyvision/test.parquet
+
+run_name: babyvision_example
+
+routing:
+  k: 4                            # group size
+  population: 16                  # candidates per problem (loop 0)
+  groups: 16                      # groups per problem per loop
+  loops: 5                        # evolutionary iterations
+  confidence_percentiles: []      # not used for multimodal (single model)
+  fitness: diversity              # diversity (confidence routing not supported)
+  selection: uniform
+  selection_temperature: 1.0
+  update: replace
+  lite_fraction: 0.0
+  lite_method: majority
+  recombination: babyvision-aggregate
+  evaluation: babyvision-judge
+  task: babyvision
+  generation_batch_size: 32
+  seed: 1234
+
+  # -- Multimodal settings --
+  multimodal: true
+  include_images_in_recombination: true
+
+models:
+  - name: gpt-4o
+    base_url: https://api.openai.com/v1
+    api_key: "${OPENAI_API_KEY}"
+    endpoint: chat
+    max_tokens: 4096
+    temperature: 1.0
+    top_p: 1.0
+    max_concurrency: 16
+    seed: 1234
+
+# Judge model for LLM-as-judge evaluation
+judge_model:
+  name: gpt-4o
+  base_url: https://api.openai.com/v1
+  api_key: "${OPENAI_API_KEY}"
+  endpoint: chat
+  max_tokens: 64
+  temperature: 0.0
+  max_concurrency: 16
+
+retry:
+  request_timeout_seconds: 120
+
+resume: true
+checkpoint_dir: ./artifacts/babyvision/example/checkpoints
+metrics_path: ./artifacts/babyvision/example/metrics.json

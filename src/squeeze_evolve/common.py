@@ -6,6 +6,7 @@ benchmarks/*/register.py using @registry.register() decorators.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections import Counter
 from typing import Any, Callable
@@ -118,6 +119,138 @@ def eval_boxed_math(candidates: list[str], gt: Any, **kwargs: Any) -> dict[str, 
         "mean_acc": float(sum(correct)) / max(1, len(correct)),
         "pass_at_k": float(any(correct)),
         "majority_vote": float(majority == gt_str),
+    }
+
+
+# ---------------------------------------------------------------------------
+# LLM-as-judge evaluation (BabyVision / MMMU Pro)
+# ---------------------------------------------------------------------------
+
+def _parse_judge_verdict(judge_response: str) -> bool:
+    """Parse a True/False verdict from a judge LLM response."""
+    text = judge_response.strip().lower()
+    # Check for explicit True/False at the start or end
+    if text.startswith("true") or text.endswith("true"):
+        return True
+    if text.startswith("false") or text.endswith("false"):
+        return False
+    # Fallback: search anywhere
+    if "true" in text and "false" not in text:
+        return True
+    return False
+
+
+def eval_babyvision_judge(
+    candidates: list[str],
+    gt: Any,
+    judge_fn: Callable[[str], str] | None = None,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """BabyVision evaluation using LLM-as-judge.
+
+    Extracts the ``\\boxed{}`` answer from each candidate, then asks the judge
+    model whether it matches the ground truth.
+
+    *judge_fn* should be a synchronous wrapper around the judge backend's
+    ``judge_completion`` method.  If ``None``, falls back to exact-match
+    comparison.
+    """
+    gt_str = str(gt).strip()
+    extracted = [extract_boxed_math_answer(c) for c in candidates]
+
+    if judge_fn is None:
+        # Fallback: direct string match
+        correct = [ans.lower() == gt_str.lower() for ans in extracted]
+    else:
+        correct = []
+        for ans in extracted:
+            prompt = (
+                "You are an answer-verification judge. Given the ground truth answer "
+                "and a student's extracted answer, determine if they are equivalent.\n\n"
+                f"Ground truth: {gt_str}\n"
+                f"Student answer: {ans}\n\n"
+                "Are the two answers equivalent? Reply with exactly one word: True or False."
+            )
+            try:
+                verdict = judge_fn(prompt)
+                correct.append(_parse_judge_verdict(verdict))
+            except Exception:
+                correct.append(ans.lower() == gt_str.lower())
+
+    counts = Counter(extracted)
+    majority = counts.most_common(1)[0][0] if counts else ""
+    return {
+        "pred_accuracies": [float(c) for c in correct],
+        "mean_acc": float(sum(correct)) / max(1, len(correct)),
+        "pass_at_k": float(any(correct)),
+        "majority_vote": float(_parse_judge_verdict(judge_fn(
+            f"Ground truth: {gt_str}\nStudent answer: {majority}\n"
+            "Are the two answers equivalent? Reply with exactly one word: True or False."
+        ))) if judge_fn and majority else float(majority.lower() == gt_str.lower()),
+    }
+
+
+def eval_mmmu_pro_judge(
+    candidates: list[str],
+    gt: Any,
+    options: list[str] | str | None = None,
+    judge_fn: Callable[[str], str] | None = None,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """MMMU Pro evaluation using LLM-as-judge.
+
+    Sends each candidate response along with the options and correct answer
+    to GPT-4o, which judges whether the student selected the correct option.
+
+    *options* can be a JSON-encoded list or a Python list of option strings.
+    """
+    import json as _json
+
+    gt_str = str(gt).strip()
+
+    if isinstance(options, str):
+        try:
+            options = _json.loads(options)
+        except (ValueError, TypeError):
+            options = []
+    if options is None:
+        options = []
+
+    # Format options with letters
+    option_letters = [chr(ord("A") + i) for i in range(len(options))]
+    options_text = "\n".join(
+        f"{letter}. {opt}" for letter, opt in zip(option_letters, options)
+    )
+
+    extracted = [extract_boxed_math_answer(c) for c in candidates]
+
+    if judge_fn is None:
+        correct = [ans.upper() == gt_str.upper() for ans in extracted]
+    else:
+        correct = []
+        for i, (candidate, ans) in enumerate(zip(candidates, extracted)):
+            prompt = (
+                "You are an answer-verification judge for a multiple-choice question.\n\n"
+                f"Options:\n{options_text}\n\n"
+                f"Correct answer: {gt_str}\n\n"
+                f"Student's response:\n{strip_think_blocks(candidate)}\n\n"
+                f"Student's extracted answer: {ans}\n\n"
+                "Did the student select the correct option? "
+                "Reply with exactly one word: True or False."
+            )
+            try:
+                verdict = judge_fn(prompt)
+                correct.append(_parse_judge_verdict(verdict))
+            except Exception:
+                correct.append(ans.upper() == gt_str.upper())
+
+    counts = Counter(extracted)
+    majority = counts.most_common(1)[0][0] if counts else ""
+    return {
+        "pred_accuracies": [float(c) for c in correct],
+        "mean_acc": float(sum(correct)) / max(1, len(correct)),
+        "pass_at_k": float(any(correct)),
+        "majority_vote": float(majority.upper() == gt_str.upper()),
     }
 
 

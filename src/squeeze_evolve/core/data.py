@@ -6,11 +6,15 @@ expected by :class:`RoutingOrchestrator`.
 
 from __future__ import annotations
 
+import base64
+import io
 import json
 from pathlib import Path
 from typing import Any, Optional
 
 import pandas as pd
+
+from .types import MultimodalPrompt, Prompt
 
 
 def _extract_prompt(cell: Any) -> str:
@@ -33,20 +37,92 @@ def _extract_gt(row: dict) -> Optional[str]:
     return None
 
 
-def load_parquet(path: str, n_problems: Optional[int] = None) -> list[dict[str, Any]]:
-    """Load a parquet dataset (aime25, hmmt25, gpqa_diamond, rg_*, supergpqa).
+# ---------------------------------------------------------------------------
+# Multimodal helpers
+# ---------------------------------------------------------------------------
 
-    Returns list of ``{orig_prompt, gt}`` dicts.
+def _pil_to_data_url(pil_image: Any) -> str:
+    """Convert a PIL Image to a base64 data URL (original resolution, no resize)."""
+    buf = io.BytesIO()
+    fmt = getattr(pil_image, "format", None) or "PNG"
+    pil_image.save(buf, format=fmt)
+    b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+    mime = f"image/{fmt.lower()}"
+    return f"data:{mime};base64,{b64}"
+
+
+def _bytes_to_data_url(raw_bytes: bytes, mime: str = "image/png") -> str:
+    """Convert raw image bytes to a base64 data URL."""
+    b64 = base64.b64encode(raw_bytes).decode("utf-8")
+    return f"data:{mime};base64,{b64}"
+
+
+def _extract_multimodal_prompt(row: dict) -> MultimodalPrompt:
+    """Build a MultimodalPrompt from a parquet row.
+
+    Collects images from columns named ``image``, ``image_1``, ``image_2``, etc.
+    Each image value can be:
+    * A base64 data URL string (``data:image/...;base64,...``).
+    * A PIL Image object.
+    * Raw ``bytes``.
+    """
+    text = _extract_prompt(row.get("prompt", ""))
+    images: list[str] = []
+
+    # Collect image columns: "image", then "image_1" .. "image_7"
+    img_cols = ["image"] + [f"image_{i}" for i in range(1, 8)]
+    for col in img_cols:
+        val = row.get(col)
+        if val is None:
+            continue
+        if isinstance(val, str) and val.startswith("data:"):
+            images.append(val)
+        elif isinstance(val, bytes):
+            images.append(_bytes_to_data_url(val))
+        else:
+            # Assume PIL Image
+            try:
+                images.append(_pil_to_data_url(val))
+            except Exception:
+                pass  # skip unrecognized image types
+
+    return MultimodalPrompt(text=text, images=images)
+
+
+# ---------------------------------------------------------------------------
+# Loaders
+# ---------------------------------------------------------------------------
+
+def load_parquet(
+    path: str,
+    n_problems: Optional[int] = None,
+    multimodal: bool = False,
+) -> list[dict[str, Any]]:
+    """Load a parquet dataset (aime25, hmmt25, gpqa_diamond, babyvision, mmmu_pro, ...).
+
+    Returns list of ``{orig_prompt, gt}`` dicts.  When *multimodal* is
+    ``True``, ``orig_prompt`` is a :class:`MultimodalPrompt` instead of
+    a plain string.
     """
     df = pd.read_parquet(path)
     if n_problems is not None:
         df = df.head(n_problems)
     problems = []
     for _, row in df.iterrows():
-        problems.append({
-            "orig_prompt": _extract_prompt(row["prompt"]),
-            "gt": _extract_gt(row.to_dict()),
-        })
+        row_dict = row.to_dict()
+        if multimodal:
+            prompt: Prompt = _extract_multimodal_prompt(row_dict)
+        else:
+            prompt = _extract_prompt(row_dict.get("prompt", ""))
+
+        entry: dict[str, Any] = {
+            "orig_prompt": prompt,
+            "gt": _extract_gt(row_dict),
+        }
+        # Carry forward extra metadata (e.g. options for MMMU Pro)
+        if "options" in row_dict:
+            entry["options"] = row_dict["options"]
+        problems.append(entry)
     return problems
 
 
@@ -64,14 +140,18 @@ def load_jsonl(path: str, n_problems: Optional[int] = None) -> list[dict[str, An
     return problems
 
 
-def load_dataset(path: str, n_problems: Optional[int] = None) -> list[dict[str, Any]]:
+def load_dataset(
+    path: str,
+    n_problems: Optional[int] = None,
+    multimodal: bool = False,
+) -> list[dict[str, Any]]:
     """Auto-detect format and load a dataset.
 
     Supports ``.parquet``, ``.jsonl``, and ``.json`` files.
     """
     p = Path(path)
     if p.suffix == ".parquet":
-        return load_parquet(path, n_problems)
+        return load_parquet(path, n_problems, multimodal=multimodal)
     if p.suffix == ".jsonl":
         return load_jsonl(path, n_problems)
     if p.suffix == ".json":
