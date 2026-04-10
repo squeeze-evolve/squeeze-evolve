@@ -6,7 +6,7 @@ benchmarks/*/register.py using @registry.register() decorators.
 
 from __future__ import annotations
 
-import asyncio
+import random
 import re
 from collections import Counter
 from typing import Any, Callable
@@ -123,19 +123,89 @@ def eval_boxed_math(candidates: list[str], gt: Any, **kwargs: Any) -> dict[str, 
 
 
 # ---------------------------------------------------------------------------
-# LLM-as-judge evaluation (BabyVision / MMMU Pro)
+# BabyVision answer extraction and LLM-as-judge
+# Aligned with lmms-eval-new/lmms_eval/tasks/babyvision/
 # ---------------------------------------------------------------------------
+
+def extract_babyvision_boxed_answer(text: str) -> str | None:
+    """Extract \\boxed{} content from BabyVision model output.
+
+    Handles <think>...</think> reasoning format by prioritizing content
+    after </think>.  Aligned with lmms-eval-new babyvision/utils.py.
+    """
+    if not text:
+        return None
+
+    # For models with <think>...</think>, prioritize content after </think>
+    think_end = text.find("</think>")
+    if think_end != -1:
+        text_after_think = text[think_end + 8:]
+        pattern = r"\\boxed\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}"
+        matches = re.findall(pattern, text_after_think)
+        if matches:
+            return matches[-1].strip()
+
+    # Standard \\boxed{} extraction from full text
+    pattern = r"\\boxed\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}"
+    matches = re.findall(pattern, text)
+    if matches:
+        return matches[-1].strip()
+
+    # Fallback: "answer is X" or "Answer: X" patterns
+    answer_patterns = [
+        r"(?:answer|Answer|ANSWER)\s*(?:is|:)\s*[\"']?([A-Za-z0-9,\s\(\)\-]+)[\"']?",
+        r"(?:final answer|Final Answer)\s*(?:is|:)\s*[\"']?([A-Za-z0-9,\s\(\)\-]+)[\"']?",
+    ]
+    for pat in answer_patterns:
+        match = re.search(pat, text)
+        if match:
+            return match.group(1).strip()
+
+    return None
+
+
+# BabyVision LLM judge prompt — aligned with lmms-eval-new babyvision/prompt.py
+BABYVISION_JUDGE_PROMPT = """You are a careful and strict evaluator. You will be given:
+
+1. **Question**
+2. **Ground Truth Answer** (correct answer)
+3. **Model Output** (answer from another model)
+
+**Your goal:** Determine if the Model Output **accurately matches** the Ground Truth Answer in meaning.
+
+* Matching means: the facts, entities, and key details are equivalent, even if phrasing differs.
+* Not matching means: the Model Output is wrong, incomplete, contains extra incorrect facts, or changes the meaning.
+
+**Process (internal reasoning):**
+
+1. Read and understand the Question, Ground Truth Answer, and Model Output.
+2. Ignore small wording differences, formatting, or synonyms.
+3. If all factual content matches, conclude `1`. Otherwise, conclude `0`.
+
+**Important:**
+
+* Think through your decision step-by-step **internally** before responding.
+* In your final output, return **only** True or False, with no extra text or explanation.
+
+**Output format:**
+
+True
+
+or
+
+False
+
+**Input:**
+
+Question: {question},
+Ground Truth Answer: {groundtruth},
+Model Output: {modeloutput}"""
+
 
 def _parse_judge_verdict(judge_response: str) -> bool:
     """Parse a True/False verdict from a judge LLM response."""
     text = judge_response.strip().lower()
-    # Check for explicit True/False at the start or end
-    if text.startswith("true") or text.endswith("true"):
-        return True
-    if text.startswith("false") or text.endswith("false"):
-        return False
-    # Fallback: search anywhere
-    if "true" in text and "false" not in text:
+    if "true" in text:
         return True
     return False
 
@@ -143,33 +213,36 @@ def _parse_judge_verdict(judge_response: str) -> bool:
 def eval_babyvision_judge(
     candidates: list[str],
     gt: Any,
+    question: str = "",
     judge_fn: Callable[[str], str] | None = None,
     **kwargs: Any,
 ) -> dict[str, Any]:
     """BabyVision evaluation using LLM-as-judge.
 
-    Extracts the ``\\boxed{}`` answer from each candidate, then asks the judge
-    model whether it matches the ground truth.
+    Extracts the ``\\boxed{}`` answer from each candidate, then asks the
+    judge model whether it matches the ground truth.  Judge prompt is
+    aligned with lmms-eval-new ``babyvision/prompt.py``.
 
     *judge_fn* should be a synchronous wrapper around the judge backend's
-    ``judge_completion`` method.  If ``None``, falls back to exact-match
-    comparison.
+    ``judge_completion`` method.
     """
     gt_str = str(gt).strip()
-    extracted = [extract_boxed_math_answer(c) for c in candidates]
+    extracted = []
+    for c in candidates:
+        ans = extract_babyvision_boxed_answer(c)
+        if ans is None:
+            ans = c[:500] if c else ""
+        extracted.append(ans)
 
     if judge_fn is None:
-        # Fallback: direct string match
         correct = [ans.lower() == gt_str.lower() for ans in extracted]
     else:
         correct = []
         for ans in extracted:
-            prompt = (
-                "You are an answer-verification judge. Given the ground truth answer "
-                "and a student's extracted answer, determine if they are equivalent.\n\n"
-                f"Ground truth: {gt_str}\n"
-                f"Student answer: {ans}\n\n"
-                "Are the two answers equivalent? Reply with exactly one word: True or False."
+            prompt = BABYVISION_JUDGE_PROMPT.format(
+                question=question,
+                groundtruth=gt_str,
+                modeloutput=ans or "(No answer provided)",
             )
             try:
                 verdict = judge_fn(prompt)
@@ -179,15 +252,47 @@ def eval_babyvision_judge(
 
     counts = Counter(extracted)
     majority = counts.most_common(1)[0][0] if counts else ""
+    majority_correct = False
+    if judge_fn and majority:
+        try:
+            v = judge_fn(BABYVISION_JUDGE_PROMPT.format(
+                question=question, groundtruth=gt_str,
+                modeloutput=majority or "(No answer provided)",
+            ))
+            majority_correct = _parse_judge_verdict(v)
+        except Exception:
+            majority_correct = majority.lower() == gt_str.lower()
+    else:
+        majority_correct = majority.lower() == gt_str.lower()
+
     return {
         "pred_accuracies": [float(c) for c in correct],
         "mean_acc": float(sum(correct)) / max(1, len(correct)),
         "pass_at_k": float(any(correct)),
-        "majority_vote": float(_parse_judge_verdict(judge_fn(
-            f"Ground truth: {gt_str}\nStudent answer: {majority}\n"
-            "Are the two answers equivalent? Reply with exactly one word: True or False."
-        ))) if judge_fn and majority else float(majority.lower() == gt_str.lower()),
+        "majority_vote": float(majority_correct),
     }
+
+
+# ---------------------------------------------------------------------------
+# MMMU Pro LLM-as-judge evaluation
+# Aligned with lmms-eval-new/logs/eval_batch_samples.py
+# Uses LLM judge ONLY — no parser fallback.
+# ---------------------------------------------------------------------------
+
+# MMMU Pro judge prompt — aligned with eval_batch_samples.py::build_judge_prompt
+MMMU_PRO_JUDGE_PROMPT = """You are an expert evaluator for a multiple-choice exam. Your job is to determine whether the student's response contains the correct answer.
+
+Options:
+{options_str}
+
+Correct Answer: {ground_truth}
+
+Student's Response:
+{model_response}
+
+Does the student's response indicate the correct answer "{ground_truth}"? The student may have expressed the answer in different ways (e.g., stating the option letter, restating the option content, or arriving at the correct answer through reasoning).
+
+Reply with ONLY "True" or "False"."""
 
 
 def eval_mmmu_pro_judge(
@@ -199,58 +304,63 @@ def eval_mmmu_pro_judge(
 ) -> dict[str, Any]:
     """MMMU Pro evaluation using LLM-as-judge.
 
-    Sends each candidate response along with the options and correct answer
-    to GPT-4o, which judges whether the student selected the correct option.
+    Sends each candidate response along with the options and correct
+    answer to the judge model.  Judge prompt is aligned with
+    lmms-eval-new ``logs/eval_batch_samples.py``.
 
-    *options* can be a JSON-encoded list or a Python list of option strings.
+    Uses LLM judge ONLY — no parser fallback.
     """
+    import ast
     import json as _json
 
     gt_str = str(gt).strip()
 
+    # Parse options
     if isinstance(options, str):
         try:
-            options = _json.loads(options)
-        except (ValueError, TypeError):
-            options = []
+            options = ast.literal_eval(options)
+        except (ValueError, SyntaxError):
+            try:
+                options = _json.loads(options)
+            except (ValueError, TypeError):
+                options = []
     if options is None:
         options = []
 
-    # Format options with letters
-    option_letters = [chr(ord("A") + i) for i in range(len(options))]
-    options_text = "\n".join(
-        f"{letter}. {opt}" for letter, opt in zip(option_letters, options)
+    # Format options string: "A. option\nB. option\n..."
+    options_str = "\n".join(
+        f"{chr(ord('A') + i)}. {opt}" for i, opt in enumerate(options)
     )
 
-    extracted = [extract_boxed_math_answer(c) for c in candidates]
-
     if judge_fn is None:
+        # No judge available — fall back to simple boxed-answer extraction
+        extracted = [extract_boxed_math_answer(c) for c in candidates]
         correct = [ans.upper() == gt_str.upper() for ans in extracted]
     else:
         correct = []
-        for i, (candidate, ans) in enumerate(zip(candidates, extracted)):
-            prompt = (
-                "You are an answer-verification judge for a multiple-choice question.\n\n"
-                f"Options:\n{options_text}\n\n"
-                f"Correct answer: {gt_str}\n\n"
-                f"Student's response:\n{strip_think_blocks(candidate)}\n\n"
-                f"Student's extracted answer: {ans}\n\n"
-                "Did the student select the correct option? "
-                "Reply with exactly one word: True or False."
+        for candidate in candidates:
+            # Strip think blocks from response before sending to judge
+            model_response = strip_think_blocks(candidate) if candidate else ""
+            prompt = MMMU_PRO_JUDGE_PROMPT.format(
+                options_str=options_str,
+                ground_truth=gt_str,
+                model_response=model_response or "(No response)",
             )
             try:
                 verdict = judge_fn(prompt)
                 correct.append(_parse_judge_verdict(verdict))
             except Exception:
-                correct.append(ans.upper() == gt_str.upper())
+                correct.append(False)
 
-    counts = Counter(extracted)
-    majority = counts.most_common(1)[0][0] if counts else ""
+    # Majority vote via judge
+    ones = sum(1 for c in correct if c)
+    majority_correct = ones > len(correct) / 2 if correct else False
+
     return {
         "pred_accuracies": [float(c) for c in correct],
         "mean_acc": float(sum(correct)) / max(1, len(correct)),
         "pass_at_k": float(any(correct)),
-        "majority_vote": float(majority.upper() == gt_str.upper()),
+        "majority_vote": float(majority_correct),
     }
 
 

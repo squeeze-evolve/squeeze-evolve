@@ -1,8 +1,12 @@
 """MMMU Pro benchmark operators.
 
 MMMU Pro is a multi-image multiple-choice benchmark with up to 7 images
-per question and 10 options (A-J). Evaluation uses LLM-as-judge (GPT-4o)
-— no parser fallback.
+per question and 10 options (A-J). Evaluation uses LLM-as-judge ONLY
+(aligned with lmms-eval-new/logs/eval_batch_samples.py).
+
+Question format (applied during data prep, aligned with lmms-eval-new):
+  "{question}\\n{A. opt1\\nB. opt2\\n...}\\n\\nAnswer with the option letter
+  from the given choices directly."
 """
 
 from squeeze_evolve import evaluation, recombination
@@ -33,14 +37,14 @@ def mmmu_pro_synthesize(query, candidates, **kwargs):
 def mmmu_pro_judge(candidates, gt, **kwargs):
     """LLM-as-judge evaluation for MMMU Pro.
 
-    The ``judge_fn`` and ``options`` keyword arguments are injected by the
-    orchestrator.
+    Keyword args injected by the orchestrator:
+    - ``judge_fn``: synchronous callable for the judge model
+    - ``options``: list of option strings (or JSON-encoded list)
     """
     return eval_mmmu_pro_judge(
         candidates, gt,
         options=kwargs.get("options"),
         judge_fn=kwargs.get("judge_fn"),
-        **{k: v for k, v in kwargs.items() if k not in ("judge_fn", "options")},
     )
 
 
