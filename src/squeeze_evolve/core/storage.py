@@ -21,6 +21,14 @@ Usage::
 from __future__ import annotations
 
 import json
+from dataclasses import asdict, is_dataclass
+
+
+def _json_default(obj):
+    """JSON serializer for dataclass objects (e.g. MultimodalPrompt)."""
+    if is_dataclass(obj) and not isinstance(obj, type):
+        return asdict(obj)
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 import os
 from typing import Any, Optional, Protocol
 
@@ -63,7 +71,7 @@ class LocalStorage:
         path = self._path(key)
         tmp = f"{path}.tmp"
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+            json.dump(data, f, indent=2, default=_json_default)
         os.replace(tmp, path)
 
     def load_json(self, key: str) -> Any:

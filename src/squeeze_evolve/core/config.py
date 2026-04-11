@@ -64,6 +64,7 @@ class ModelConfig(BaseModel):
     max_concurrency: int = Field(32, ge=1)
     prompt_logprobs: int = Field(0, ge=0)
     vllm_extensions: bool = False
+    extra_body: dict = Field(default_factory=dict)  # provider-specific params (e.g. {"thinking": false})
 
     @model_validator(mode="after")
     def _validate_endpoint(self) -> ModelConfig:

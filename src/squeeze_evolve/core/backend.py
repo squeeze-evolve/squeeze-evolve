@@ -224,6 +224,8 @@ class OpenAIBackend:
             kwargs["reasoning_effort"] = self.cfg.reasoning_effort
         if self.cfg.seed is not None:
             kwargs["seed"] = self.cfg.seed
+        if self.cfg.extra_body:
+            kwargs["extra_body"] = {**(kwargs.get("extra_body") or {}), **self.cfg.extra_body}
         return kwargs
 
     def _completion_kwargs(self, prompt: str) -> dict[str, Any]:

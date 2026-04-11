@@ -52,10 +52,17 @@ def client() -> None:
     _discover_benchmarks()
 
     cfg = load_run_config(args.config, include_path=args.include_path)
-    problems = load_dataset(args.input, n_problems=args.n_problems)
+    problems = load_dataset(args.input, n_problems=args.n_problems, multimodal=cfg.routing.multimodal)
 
     result = asyncio.run(RoutingOrchestrator(cfg).run(problems))
-    rendered = json.dumps(result, indent=2)
+    from dataclasses import asdict, is_dataclass
+
+    def _default(obj):
+        if is_dataclass(obj) and not isinstance(obj, type):
+            return asdict(obj)
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+    rendered = json.dumps(result, indent=2, default=_default)
     if args.output:
         with open(args.output, "w", encoding="utf-8") as out:
             out.write(rendered)

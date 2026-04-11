@@ -95,11 +95,11 @@ class RoutingOrchestrator:
 
         n = len(self.backends)
         percs = cfg.routing.confidence_percentiles
-        if n > 1 and len(percs) != n - 1:
+        if n > 1 and len(percs) != n - 1 and not cfg.routing.multimodal:
             raise ValueError(
                 f"{n} models require {n - 1} confidence_percentiles, got {len(percs)}"
             )
-        self._percentiles = percs if n > 1 else []
+        self._percentiles = percs if n > 1 and len(percs) == n - 1 else []
 
         self._checkpoint_storage = create_storage(cfg.checkpoint_dir)
         self._metrics_storage = create_storage(os.path.dirname(cfg.metrics_path) or ".")
@@ -174,10 +174,26 @@ class RoutingOrchestrator:
 
     @property
     def _operator_ctx(self) -> dict[str, Any]:
-        return {
+        ctx: dict[str, Any] = {
             "task": self.cfg.routing.task,
             "temperature": self.cfg.routing.selection_temperature,
         }
+        if self.judge is not None:
+            import asyncio as _aio
+            import concurrent.futures
+
+            def _judge_fn(prompt: str) -> str:
+                try:
+                    loop = _aio.get_event_loop()
+                except RuntimeError:
+                    loop = None
+                if loop is not None and loop.is_running():
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                        return pool.submit(_aio.run, self.judge.judge_completion(prompt)).result()
+                return _aio.run(self.judge.judge_completion(prompt))
+
+            ctx["judge_fn"] = _judge_fn
+        return ctx
 
     # -- Loop 0 -------------------------------------------------------------
 
@@ -403,11 +419,17 @@ class RoutingOrchestrator:
 
     def _evaluate(self, problems: list[ProblemState]) -> dict[str, Any]:
         results = []
+        ctx = self._operator_ctx
         for i, p in enumerate(problems):
             if not p.candidates or p.gt is None:
                 continue
             try:
-                results.append(self._eval_fn(p.candidates, p.gt, **self._operator_ctx))
+                eval_ctx = dict(ctx)
+                if hasattr(p, "question"):
+                    eval_ctx["question"] = p.question
+                if hasattr(p, "options"):
+                    eval_ctx["options"] = p.options
+                results.append(self._eval_fn(p.candidates, p.gt, **eval_ctx))
             except Exception:
                 logger.warning("Eval failed for problem %d, skipping", i, exc_info=True)
         agg = aggregate_eval_results(results)

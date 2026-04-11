@@ -119,9 +119,11 @@ def load_parquet(
             "orig_prompt": prompt,
             "gt": _extract_gt(row_dict),
         }
-        # Carry forward extra metadata (e.g. options for MMMU Pro)
+        # Carry forward extra metadata for judge prompts
         if "options" in row_dict:
             entry["options"] = row_dict["options"]
+        if "raw_question" in row_dict:
+            entry["question"] = row_dict["raw_question"]
         problems.append(entry)
     return problems
 
