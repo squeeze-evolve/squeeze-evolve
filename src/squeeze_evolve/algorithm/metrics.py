@@ -14,11 +14,13 @@ import numpy as np
 
 @dataclass
 class ProblemState:
-    orig_prompt: str
+    orig_prompt: Any  # str for text-only, MultimodalPrompt for vision benchmarks
     gt: Any = None
     candidates: Optional[list[str]] = None
     candidate_groups: Optional[list[list[str]]] = None
     routing_details: Optional[dict[str, Any]] = None
+    question: Optional[str] = None   # extra metadata forwarded to eval operators
+    options: Optional[Any] = None    # extra metadata forwarded to eval operators
 
 
 # ---------------------------------------------------------------------------

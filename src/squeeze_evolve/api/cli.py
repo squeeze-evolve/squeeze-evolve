@@ -52,10 +52,12 @@ def client() -> None:
     _discover_benchmarks()
 
     cfg = load_run_config(args.config, include_path=args.include_path)
-    problems = load_dataset(args.input, n_problems=args.n_problems)
+    problems = load_dataset(args.input, n_problems=args.n_problems, multimodal=cfg.routing.multimodal)
 
     result = asyncio.run(RoutingOrchestrator(cfg).run(problems))
-    rendered = json.dumps(result, indent=2)
+    from ..core.storage import _json_default
+
+    rendered = json.dumps(result, indent=2, default=_json_default)
     if args.output:
         with open(args.output, "w", encoding="utf-8") as out:
             out.write(rendered)

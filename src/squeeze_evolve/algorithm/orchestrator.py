@@ -20,6 +20,7 @@ from tqdm.auto import tqdm
 from ..core.backend import GenerationResponse, make_backend
 from ..core.config import RunConfig, validate_scoring_policy
 from ..core.storage import create_storage
+from ..core.types import MultimodalPrompt, Prompt
 from ..common import extract_boxed_math_answer, strip_think_blocks
 from .metrics import (
     ConfidenceMetrics,
@@ -53,6 +54,29 @@ logger = logging.getLogger("squeeze_evolve")
 
 
 # ---------------------------------------------------------------------------
+# Prompt helpers
+# ---------------------------------------------------------------------------
+
+def _prompt_text(prompt: Prompt) -> str:
+    """Extract the text component of a Prompt (str or MultimodalPrompt)."""
+    if isinstance(prompt, MultimodalPrompt):
+        return prompt.text
+    return prompt
+
+
+def _prompt_with_images(text: str, source_prompt: Prompt, include_images: bool) -> Prompt:
+    """Rebuild a Prompt from recombination *text* and the original prompt's images.
+
+    When *include_images* is ``True`` and the source is multimodal, the
+    returned prompt carries the original images. Otherwise a plain string
+    is returned (cheaper and sufficient for text-only recombination loops).
+    """
+    if include_images and isinstance(source_prompt, MultimodalPrompt) and source_prompt.has_images:
+        return MultimodalPrompt(text=text, images=source_prompt.images)
+    return text
+
+
+# ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
 
@@ -68,11 +92,11 @@ class RoutingOrchestrator:
 
         n = len(self.backends)
         percs = cfg.routing.confidence_percentiles
-        if n > 1 and len(percs) != n - 1:
+        if n > 1 and len(percs) != n - 1 and not cfg.routing.multimodal:
             raise ValueError(
                 f"{n} models require {n - 1} confidence_percentiles, got {len(percs)}"
             )
-        self._percentiles = percs if n > 1 else []
+        self._percentiles = percs if n > 1 and len(percs) == n - 1 else []
 
         self._checkpoint_storage = create_storage(cfg.checkpoint_dir)
         self._metrics_storage = create_storage(os.path.dirname(cfg.metrics_path) or ".")
@@ -86,8 +110,12 @@ class RoutingOrchestrator:
         self._eval_fn = evaluation.get(cfg.routing.evaluation)
         self._batch_size = cfg.routing.generation_batch_size
 
-        # Scoring tokenizer — needed for chat template + token boundary computation
-        if cfg.routing.fitness != "diversity":
+        self._is_multimodal = cfg.routing.multimodal
+        self._include_images_in_recomb = cfg.routing.include_images_in_recombination
+
+        # Scoring tokenizer — needed for chat template + token boundary computation.
+        # Skipped for multimodal benchmarks (no fitness-based routing).
+        if not self._is_multimodal and cfg.routing.fitness != "diversity":
             scoring_cfg = cfg.scoring_model if cfg.scoring_model else cfg.models[-1]
             tok_name = scoring_cfg.tokenizer or scoring_cfg.name
             try:
@@ -103,12 +131,16 @@ class RoutingOrchestrator:
         else:
             self._scoring_tokenizer = None
 
-    def _recomb(self, query: str, candidates: list[str]) -> str:
-        return self._recomb_fn(query, candidates, **self._operator_ctx)
+    def _recomb(self, orig_prompt: Prompt, candidates: list[str]) -> Prompt:
+        """Run the recombination operator and re-attach images if needed."""
+        text = _prompt_text(orig_prompt)
+        recomb_text = self._recomb_fn(text, candidates, **self._operator_ctx)
+        return _prompt_with_images(recomb_text, orig_prompt, self._include_images_in_recomb)
 
-    def _apply_chat_template(self, prompt: str) -> tuple[str, int]:
+    def _apply_chat_template(self, prompt: Prompt) -> tuple[str, int]:
         """Apply chat template, return (formatted_string, token_count)."""
-        messages = [{"role": "user", "content": prompt}]
+        text = _prompt_text(prompt)
+        messages = [{"role": "user", "content": text}]
         formatted = self._scoring_tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True,
         )
@@ -128,21 +160,28 @@ class RoutingOrchestrator:
         task = self.cfg.routing.task
         if task in ("math", "gpqa_diamond"):
             return extract_boxed_math_answer(candidate)
+        # Generic fallback: try boxed extraction, then strip think blocks.
+        answer = extract_boxed_math_answer(candidate)
+        if answer:
+            return answer
         return strip_think_blocks(candidate or "")
 
     @property
     def _operator_ctx(self) -> dict[str, Any]:
-        return {
+        ctx: dict[str, Any] = {
             "task": self.cfg.routing.task,
             "temperature": self.cfg.routing.selection_temperature,
         }
+        if self.cfg.judge_model is not None:
+            ctx["judge_model_cfg"] = self.cfg.judge_model.model_dump()
+        return ctx
 
     # -- Loop 0 -------------------------------------------------------------
 
     async def _loop0(self, problems: list[ProblemState]) -> tuple[list[ProblemState], LoopMetrics]:
         t0 = time.time()
         N = self.cfg.routing.population
-        prompts = [self._recomb(p.orig_prompt, []) for p in problems for _ in range(N)]
+        prompts: list[Prompt] = [self._recomb(p.orig_prompt, []) for p in problems for _ in range(N)]
         top = len(self.backends) - 1
         logger.info("Loop 0: generating %d candidates (%d problems x %d population)", len(prompts), len(problems), N)
         responses = await self.backends[-1].generate_batched(prompts, self._batch_size)
@@ -164,7 +203,17 @@ class RoutingOrchestrator:
     # -- Score population ----------------------------------------------------
 
     async def _score_population(self, problems: list[ProblemState]) -> tuple[dict[tuple[int, int], float], int]:
-        confs: dict[tuple[int, int], float] = {}
+        # Multimodal benchmarks do not support fitness-based routing.
+        if self._is_multimodal:
+            confs: dict[tuple[int, int], float] = {}
+            for p_idx, problem in enumerate(problems):
+                if not problem.candidates:
+                    continue
+                for c_idx in range(len(problem.candidates)):
+                    confs[(p_idx, c_idx)] = 0.0
+            return confs, 0
+
+        confs = {}
         full_texts, starts, lookup = [], [], []
         for p_idx, problem in enumerate(problems):
             if not problem.candidates:
@@ -234,7 +283,7 @@ class RoutingOrchestrator:
             all_thresholds.append(thresholds)
 
         # Flatten by tier
-        tier_prompts: dict[str, list[str]] = {f"model_{i}": [] for i in range(n_backends)}
+        tier_prompts: dict[str, list[Prompt]] = {f"model_{i}": [] for i in range(n_backends)}
         lite_groups: list[list[str]] = []
         flat_order: list[tuple[str, int]] = []
         flat_groups: list[list[str]] = []
@@ -351,11 +400,17 @@ class RoutingOrchestrator:
 
     def _evaluate(self, problems: list[ProblemState]) -> dict[str, Any]:
         results = []
+        ctx = self._operator_ctx
         for i, p in enumerate(problems):
             if not p.candidates or p.gt is None:
                 continue
             try:
-                results.append(self._eval_fn(p.candidates, p.gt, **self._operator_ctx))
+                eval_ctx = dict(ctx)
+                if p.question is not None:
+                    eval_ctx["question"] = p.question
+                if p.options is not None:
+                    eval_ctx["options"] = p.options
+                results.append(self._eval_fn(p.candidates, p.gt, **eval_ctx))
             except Exception:
                 logger.warning("Eval failed for problem %d, skipping", i, exc_info=True)
         agg = aggregate_eval_results(results)

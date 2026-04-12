@@ -22,7 +22,18 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import asdict, is_dataclass
 from typing import Any, Optional, Protocol
+
+
+def _json_default(obj: Any) -> Any:
+    """JSON serializer for dataclass objects (e.g. MultimodalPrompt).
+
+    Re-used by :mod:`squeeze_evolve.api.cli` for JSON output.
+    """
+    if is_dataclass(obj) and not isinstance(obj, type):
+        return asdict(obj)
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
 class Storage(Protocol):
@@ -63,7 +74,7 @@ class LocalStorage:
         path = self._path(key)
         tmp = f"{path}.tmp"
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+            json.dump(data, f, indent=2, default=_json_default)
         os.replace(tmp, path)
 
     def load_json(self, key: str) -> Any:

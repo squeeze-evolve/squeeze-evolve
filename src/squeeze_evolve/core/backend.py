@@ -14,6 +14,7 @@ from urllib.request import Request, urlopen
 from openai import APIConnectionError, APITimeoutError, AsyncOpenAI, RateLimitError
 
 from .config import ModelConfig, RetryConfig
+from .types import MultimodalPrompt, Prompt
 
 T = TypeVar("T")
 logger = logging.getLogger("squeeze_evolve")
@@ -38,6 +39,31 @@ class GenerationBackend(Protocol):
     async def generate(self, prompts: List[str]) -> List[GenerationResponse]: ...
     async def prompt_confidence(self, full_texts: List[str], start_idxs: List[int]) -> List[Optional[float]]: ...
     async def count_tokens(self, texts: List[str]) -> List[int]: ...
+
+
+# ---------------------------------------------------------------------------
+# Multimodal message helpers
+# ---------------------------------------------------------------------------
+
+def _build_message_content(prompt: Prompt) -> Any:
+    """Build OpenAI message content from a Prompt.
+
+    * ``str`` -> plain string (text-only, fast path).
+    * ``MultimodalPrompt`` without images -> plain string.
+    * ``MultimodalPrompt`` with images -> ``list[dict]`` in OpenAI
+      ``image_url`` format.
+    """
+    if isinstance(prompt, str):
+        return prompt
+    if not prompt.has_images:
+        return prompt.text
+    parts: list[dict[str, Any]] = [{"type": "text", "text": prompt.text}]
+    for img_url in prompt.images:
+        parts.append({
+            "type": "image_url",
+            "image_url": {"url": img_url, "detail": "auto"},
+        })
+    return parts
 
 
 # ---------------------------------------------------------------------------
@@ -185,10 +211,11 @@ class OpenAIBackend:
             messages, tokenize=False, add_generation_prompt=True,
         )
 
-    def _chat_completion_kwargs(self, prompt: str) -> dict[str, Any]:
+    def _chat_completion_kwargs(self, prompt: Prompt) -> dict[str, Any]:
+        content = _build_message_content(prompt)
         kwargs: dict[str, Any] = {
             "model": self._model_name,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [{"role": "user", "content": content}],
             "temperature": self.cfg.temperature,
             "top_p": self.cfg.top_p,
             "max_completion_tokens": self.cfg.max_tokens,
@@ -197,6 +224,8 @@ class OpenAIBackend:
             kwargs["reasoning_effort"] = self.cfg.reasoning_effort
         if self.cfg.seed is not None:
             kwargs["seed"] = self.cfg.seed
+        if self.cfg.extra_body:
+            kwargs["extra_body"] = {**(kwargs.get("extra_body") or {}), **self.cfg.extra_body}
         return kwargs
 
     def _completion_kwargs(self, prompt: str) -> dict[str, Any]:
@@ -212,9 +241,11 @@ class OpenAIBackend:
             kwargs["seed"] = self.cfg.seed
         return kwargs
 
-    async def _make_call(self, prompt: str) -> GenerationResponse:
+    async def _make_call(self, prompt: Prompt) -> GenerationResponse:
         if self.cfg.endpoint == "completions":
-            resp = await self.client.completions.create(**self._completion_kwargs(prompt))
+            # Completions endpoint only supports text.
+            prompt_text = prompt.text if isinstance(prompt, MultimodalPrompt) else prompt
+            resp = await self.client.completions.create(**self._completion_kwargs(prompt_text))
             choice = resp.choices[0]
             text = choice.text or ""
         else:
@@ -228,18 +259,19 @@ class OpenAIBackend:
             completion_tokens=getattr(usage, "completion_tokens", 0) if usage else 0,
         )
 
-    async def _one(self, prompt: str) -> GenerationResponse:
+    async def _one(self, prompt: Prompt) -> GenerationResponse:
         async def call() -> GenerationResponse:
             async with self._semaphore:
                 return await self._make_call(prompt)
         try:
             return await run_with_retry(call, self.retry_policy)
         except Exception as exc:  # noqa: BLE001
-            sanitized_prompt = _sanitize_openai_prompt(prompt)
+            prompt_text = prompt.text if isinstance(prompt, MultimodalPrompt) else prompt
+            sanitized_prompt = _sanitize_openai_prompt(prompt_text)
             if (
                 self._is_openai_api()
                 and _is_invalid_prompt_error(exc)
-                and sanitized_prompt != prompt
+                and sanitized_prompt != prompt_text
             ):
                 logger.warning("Retrying invalid_prompt with sanitized prompt for model %s", self._model_name)
 
@@ -250,10 +282,10 @@ class OpenAIBackend:
                 return await run_with_retry(retry_call, self.retry_policy)
             raise
 
-    async def generate(self, prompts: List[str]) -> List[GenerationResponse]:
+    async def generate(self, prompts: List[Prompt]) -> List[GenerationResponse]:
         return list(await asyncio.gather(*(self._one(p) for p in prompts)))
 
-    async def generate_batched(self, prompts: List[str], batch_size: int = 32) -> List[GenerationResponse]:
+    async def generate_batched(self, prompts: List[Prompt], batch_size: int = 32) -> List[GenerationResponse]:
         results: List[GenerationResponse] = []
         for i in range(0, len(prompts), batch_size):
             results.extend(await self.generate(prompts[i : i + batch_size]))
@@ -316,6 +348,26 @@ class OpenAIBackend:
             *(_one_confidence(t, s) for t, s in zip(full_texts, start_idxs))
         ))
 
+    # -- Judge completions (text-only, for LLM-as-judge evaluation) ---------
 
-def make_backend(model_cfg: ModelConfig, retry_cfg: RetryConfig) -> GenerationBackend:
+    async def judge_completion(self, prompt: str, **kwargs: Any) -> str:
+        """Single text-only judge call. Returns the model's text response.
+
+        This is a simplified call path for LLM-as-judge evaluation
+        (e.g. GPT-4o judging BabyVision / MMMU Pro answers).
+        """
+        async def call() -> str:
+            async with self._semaphore:
+                resp = await self.client.chat.completions.create(
+                    model=self._model_name,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.0,
+                    max_completion_tokens=self.cfg.max_tokens,
+                )
+                return resp.choices[0].message.content or ""
+
+        return await run_with_retry(call, self.retry_policy)
+
+
+def make_backend(model_cfg: ModelConfig, retry_cfg: RetryConfig) -> OpenAIBackend:
     return OpenAIBackend(model_cfg, retry_cfg)
