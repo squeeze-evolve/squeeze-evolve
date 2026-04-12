@@ -21,16 +21,19 @@ Usage::
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import asdict, is_dataclass
+from typing import Any, Optional, Protocol
 
 
-def _json_default(obj):
-    """JSON serializer for dataclass objects (e.g. MultimodalPrompt)."""
+def _json_default(obj: Any) -> Any:
+    """JSON serializer for dataclass objects (e.g. MultimodalPrompt).
+
+    Re-used by :mod:`squeeze_evolve.api.cli` for JSON output.
+    """
     if is_dataclass(obj) and not isinstance(obj, type):
         return asdict(obj)
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
-import os
-from typing import Any, Optional, Protocol
 
 
 class Storage(Protocol):

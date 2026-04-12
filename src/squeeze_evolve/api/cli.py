@@ -55,14 +55,9 @@ def client() -> None:
     problems = load_dataset(args.input, n_problems=args.n_problems, multimodal=cfg.routing.multimodal)
 
     result = asyncio.run(RoutingOrchestrator(cfg).run(problems))
-    from dataclasses import asdict, is_dataclass
+    from ..core.storage import _json_default
 
-    def _default(obj):
-        if is_dataclass(obj) and not isinstance(obj, type):
-            return asdict(obj)
-        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
-
-    rendered = json.dumps(result, indent=2, default=_default)
+    rendered = json.dumps(result, indent=2, default=_json_default)
     if args.output:
         with open(args.output, "w", encoding="utf-8") as out:
             out.write(rendered)

@@ -19,8 +19,8 @@ class ProblemState:
     candidates: Optional[list[str]] = None
     candidate_groups: Optional[list[list[str]]] = None
     routing_details: Optional[dict[str, Any]] = None
-    question: Optional[str] = None   # raw question text for judge prompts
-    options: Optional[Any] = None    # answer options for judge prompts (MMMU Pro)
+    question: Optional[str] = None   # extra metadata forwarded to eval operators
+    options: Optional[Any] = None    # extra metadata forwarded to eval operators
 
 
 # ---------------------------------------------------------------------------

@@ -9,8 +9,11 @@ from __future__ import annotations
 import base64
 import io
 import json
+import logging
 from pathlib import Path
 from typing import Any, Optional
+
+logger = logging.getLogger("squeeze_evolve")
 
 import pandas as pd
 
@@ -84,7 +87,10 @@ def _extract_multimodal_prompt(row: dict) -> MultimodalPrompt:
             try:
                 images.append(_pil_to_data_url(val))
             except Exception:
-                pass  # skip unrecognized image types
+                logger.warning(
+                    "Skipping unrecognized image type %s in column %r",
+                    type(val).__name__, col,
+                )
 
     return MultimodalPrompt(text=text, images=images)
 

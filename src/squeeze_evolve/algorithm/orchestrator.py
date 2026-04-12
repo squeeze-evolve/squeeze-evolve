@@ -90,9 +90,6 @@ class RoutingOrchestrator:
         self.backends = [make_backend(m, cfg.retry) for m in cfg.models]
         self.scorer = make_backend(cfg.scoring_model, cfg.retry) if cfg.scoring_model else None
 
-        # Judge backend (for LLM-as-judge evaluation in multimodal benchmarks)
-        self.judge = make_backend(cfg.judge_model, cfg.retry) if cfg.judge_model else None
-
         n = len(self.backends)
         percs = cfg.routing.confidence_percentiles
         if n > 1 and len(percs) != n - 1 and not cfg.routing.multimodal:
@@ -163,13 +160,10 @@ class RoutingOrchestrator:
         task = self.cfg.routing.task
         if task in ("math", "gpqa_diamond"):
             return extract_boxed_math_answer(candidate)
-        if task in ("babyvision", "mmmu_pro"):
-            # For vision benchmarks, extract boxed answer or fall back to
-            # stripping think blocks.
-            answer = extract_boxed_math_answer(candidate)
-            if answer:
-                return answer
-            return strip_think_blocks(candidate or "")
+        # Generic fallback: try boxed extraction, then strip think blocks.
+        answer = extract_boxed_math_answer(candidate)
+        if answer:
+            return answer
         return strip_think_blocks(candidate or "")
 
     @property
@@ -178,21 +172,8 @@ class RoutingOrchestrator:
             "task": self.cfg.routing.task,
             "temperature": self.cfg.routing.selection_temperature,
         }
-        if self.judge is not None:
-            import asyncio as _aio
-            import concurrent.futures
-
-            def _judge_fn(prompt: str) -> str:
-                try:
-                    loop = _aio.get_event_loop()
-                except RuntimeError:
-                    loop = None
-                if loop is not None and loop.is_running():
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                        return pool.submit(_aio.run, self.judge.judge_completion(prompt)).result()
-                return _aio.run(self.judge.judge_completion(prompt))
-
-            ctx["judge_fn"] = _judge_fn
+        if self.cfg.judge_model is not None:
+            ctx["judge_model_cfg"] = self.cfg.judge_model.model_dump()
         return ctx
 
     # -- Loop 0 -------------------------------------------------------------
@@ -425,9 +406,9 @@ class RoutingOrchestrator:
                 continue
             try:
                 eval_ctx = dict(ctx)
-                if hasattr(p, "question"):
+                if p.question is not None:
                     eval_ctx["question"] = p.question
-                if hasattr(p, "options"):
+                if p.options is not None:
                     eval_ctx["options"] = p.options
                 results.append(self._eval_fn(p.candidates, p.gt, **eval_ctx))
             except Exception:
