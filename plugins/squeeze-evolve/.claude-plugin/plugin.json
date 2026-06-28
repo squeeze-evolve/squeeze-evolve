@@ -1,0 +1,12 @@
+{
+  "name": "squeeze-evolve",
+  "description": "Verifier-free evolutionary test-time scaling with diversity-based multi-model routing (Claude-only, no API keys). Adds /squeeze-evolve:ask <query>.",
+  "author": {
+    "name": "Monishwaran Maheswaran",
+    "email": "mmonishwaran00@gmail.com"
+  },
+  "homepage": "https://github.com/squeeze-evolve/squeeze-evolve",
+  "repository": "https://github.com/squeeze-evolve/squeeze-evolve",
+  "license": "Apache-2.0",
+  "keywords": ["test-time-scaling", "evolutionary", "multi-model", "routing", "workflow"]
+}

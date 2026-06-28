@@ -19,6 +19,20 @@ Squeeze-Evolve routes each step of an evolutionary inference loop to the most co
 
 ---
 
+## Use it in Claude Code
+
+Run Squeeze-Evolve on any query directly in [Claude Code](https://claude.com/claude-code) via the bundled plugin — no setup, no API keys (it uses your own Claude session):
+
+```bash
+/plugin marketplace add squeeze-evolve/squeeze-evolve
+/plugin install squeeze-evolve@squeeze-evolve
+/squeeze-evolve:ask <your question>
+```
+
+It samples candidate answers from a strong model, then evolves them — clustering by answer-diversity and routing recombination to cheap vs. expensive models (consensus → free, low → haiku, medium → sonnet, high → opus) — and returns a synthesized answer with a routing trace. Details in [`plugins/squeeze-evolve/`](plugins/squeeze-evolve/).
+
+---
+
 ## Install
 
 ```bash

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "squeeze-evolve",
+  "description": "Squeeze-Evolve: verifier-free evolutionary test-time scaling with diversity-based multi-model routing. Adds /squeeze-evolve:ask.",
+  "owner": {
+    "name": "Monishwaran Maheswaran",
+    "email": "mmonishwaran00@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "squeeze-evolve",
+      "source": "./plugins/squeeze-evolve",
+      "description": "Evolve a better answer to any query: sample N candidates from the strong model, then route group recombination by answer-diversity (consensus = free, low = haiku, medium = sonnet, high = opus) and synthesize a final answer with a per-loop diversity/routing trace.",
+      "category": "productivity",
+      "author": { "name": "Monishwaran Maheswaran" },
+      "keywords": ["test-time-scaling", "evolutionary", "multi-model", "routing", "workflow"]
+    }
+  ]
+}
