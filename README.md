@@ -19,11 +19,17 @@
 
 Squeeze-Evolve routes each step of an evolutionary inference loop to the most cost-effective model. Expensive models handle the hardest groups; cheap models handle the rest. The result: equivalent or better accuracy at a fraction of the cost.
 
-> <img src="assets/logos/nvidia.svg" height="16" alt="NVIDIA"> **Now integrated into [NVIDIA Dynamo](https://github.com/ai-dynamo/dynamo)** — Squeeze-Evolve ships as the [`dynamo.squeeze_evolve`](https://github.com/ai-dynamo/dynamo/tree/main/components/src/dynamo/squeeze_evolve) component for datacenter-scale serving.
+<p align="center">
+  <a href="https://github.com/ai-dynamo/dynamo/tree/main/components/src/dynamo/squeeze_evolve"><img src="assets/logos/nvidia.svg" height="64" alt="NVIDIA Dynamo"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="#use-it-in-claude-code"><img src="assets/logos/claude-code.svg" height="64" alt="Claude Code"></a>
+</p>
+
+> **Now integrated into [NVIDIA Dynamo](https://github.com/ai-dynamo/dynamo)** — Squeeze-Evolve ships as the [`dynamo.squeeze_evolve`](https://github.com/ai-dynamo/dynamo/tree/main/components/src/dynamo/squeeze_evolve) component for datacenter-scale serving. Also available as a [Claude Code plugin](#use-it-in-claude-code).
 
 ---
 
-## <img src="assets/logos/claude-code.svg" height="24" alt="Claude Code"> Use it in Claude Code
+## <img src="assets/logos/claude-code.svg" height="28" alt="Claude Code"> Use it in Claude Code
 
 Run Squeeze-Evolve on any query directly in [Claude Code](https://claude.com/claude-code) via the bundled plugin — no setup, no API keys (it uses your own Claude session):
 
