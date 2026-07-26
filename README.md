@@ -11,6 +11,10 @@
 </p>
 
 <p align="center">
+  🎉 <b>The Squeeze-Evolve paper has been accepted to <a href="https://colmweb.org/">COLM 2026</a>!</b>
+</p>
+
+<p align="center">
   <a href="#use-it-in-nvidia-dynamo"><img src="assets/logos/nvidia-dynamo-lockup.svg" height="72" alt="NVIDIA Dynamo"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
   <a href="#use-it-in-claude-code"><img src="assets/logos/claude-code-lockup.svg" height="72" alt="Claude Code"></a>
