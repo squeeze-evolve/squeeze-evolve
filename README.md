@@ -20,12 +20,16 @@
 Squeeze-Evolve routes each step of an evolutionary inference loop to the most cost-effective model. Expensive models handle the hardest groups; cheap models handle the rest. The result: equivalent or better accuracy at a fraction of the cost.
 
 <p align="center">
-  <a href="https://github.com/ai-dynamo/dynamo/tree/main/components/src/dynamo/squeeze_evolve"><img src="assets/logos/nvidia-dynamo-lockup.svg" height="72" alt="NVIDIA Dynamo"></a>
+  <a href="#use-it-in-nvidia-dynamo"><img src="assets/logos/nvidia-dynamo-lockup.svg" height="72" alt="NVIDIA Dynamo"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
   <a href="#use-it-in-claude-code"><img src="assets/logos/claude-code-lockup.svg" height="72" alt="Claude Code"></a>
 </p>
 
-> **Now integrated into [NVIDIA Dynamo](https://github.com/ai-dynamo/dynamo)** — Squeeze-Evolve ships as the [`dynamo.squeeze_evolve`](https://github.com/ai-dynamo/dynamo/tree/main/components/src/dynamo/squeeze_evolve) component for datacenter-scale serving. Also available as a [Claude Code plugin](#use-it-in-claude-code).
+---
+
+## <img src="assets/logos/nvidia.svg" height="28" alt="NVIDIA Dynamo"> Use it in NVIDIA Dynamo
+
+Squeeze-Evolve is integrated into [NVIDIA Dynamo](https://github.com/ai-dynamo/dynamo) as the [`dynamo.squeeze_evolve`](https://github.com/ai-dynamo/dynamo/tree/main/components/src/dynamo/squeeze_evolve) component — the evolutionary loop runs natively on the Dynamo runtime across multiple `dynamo.vllm` model tiers and is served as a standard `/v1/chat/completions` model. Deployment details are in the [component README](https://github.com/ai-dynamo/dynamo/tree/main/components/src/dynamo/squeeze_evolve).
 
 ---
 
