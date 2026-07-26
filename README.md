@@ -7,6 +7,7 @@
 <p align="center">
   <a href="https://squeeze-evolve.github.io/"><img src="https://img.shields.io/badge/Project-Website-blue?style=flat-square&logo=googlechrome&logoColor=white" alt="Website"></a>
   <a href="https://arxiv.org/abs/2604.07725"><img src="https://img.shields.io/badge/arXiv-2604.07725-b31b1b?style=flat-square&logo=arxiv&logoColor=white" alt="Paper"></a>
+  <a href="https://github.com/ai-dynamo/dynamo/tree/main/components/src/dynamo/squeeze_evolve"><img src="https://img.shields.io/badge/NVIDIA%20Dynamo-integrated-76B900?style=flat-square&logo=nvidia&logoColor=white" alt="NVIDIA Dynamo"></a>
 </p>
 
 <p align="center">
@@ -16,6 +17,8 @@
 **Multi-model orchestration for verifier-free evolutionary test-time scaling.**
 
 Squeeze-Evolve routes each step of an evolutionary inference loop to the most cost-effective model. Expensive models handle the hardest groups; cheap models handle the rest. The result: equivalent or better accuracy at a fraction of the cost.
+
+> **Now integrated into [NVIDIA Dynamo](https://github.com/ai-dynamo/dynamo)** — Squeeze-Evolve ships as the [`dynamo.squeeze_evolve`](https://github.com/ai-dynamo/dynamo/tree/main/components/src/dynamo/squeeze_evolve) component for datacenter-scale serving.
 
 ---
 
