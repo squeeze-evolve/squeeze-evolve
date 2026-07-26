@@ -7,6 +7,7 @@
 <p align="center">
   <a href="https://squeeze-evolve.github.io/"><img src="https://img.shields.io/badge/Project-Website-blue?style=flat-square&logo=googlechrome&logoColor=white" alt="Website"></a>
   <a href="https://arxiv.org/abs/2604.07725"><img src="https://img.shields.io/badge/arXiv-2604.07725-b31b1b?style=flat-square&logo=arxiv&logoColor=white" alt="Paper"></a>
+  <a href="https://colmweb.org/"><img src="https://img.shields.io/badge/COLM-2026-6f42c1?style=flat-square" alt="COLM 2026"></a>
 </p>
 
 <p align="center">
@@ -377,12 +378,13 @@ uv run pytest tests/ -v    # 105 tests
 
 ## Citation
 
-If you use Squeeze-Evolve in your research, please cite:
+The Squeeze-Evolve paper was accepted to [COLM 2026](https://colmweb.org/). If you use Squeeze-Evolve in your research, please cite:
 
 ```bibtex
-@misc{maheswaran2026squeezeevolveunifiedmultimodel,
+@inproceedings{maheswaran2026squeezeevolveunifiedmultimodel,
       title={Squeeze Evolve: Unified Multi-Model Orchestration for Verifier-Free Evolution}, 
       author={Monishwaran Maheswaran and Leon Lakhani and Zhongzhu Zhou and Shijia Yang and Junxiong Wang and Coleman Hooper and Yuezhou Hu and Rishabh Tiwari and Jue Wang and Harman Singh and Qingyang Wu and Yuqing Jian and Ce Zhang and Kurt Keutzer and Tri Dao and Xiaoxia Wu and Ben Athiwaratkun and James Zou and Chenfeng Xu},
+      booktitle={Conference on Language Modeling (COLM)},
       year={2026},
       eprint={2604.07725},
       archivePrefix={arXiv},
