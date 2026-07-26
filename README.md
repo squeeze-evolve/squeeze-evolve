@@ -20,9 +20,9 @@
 Squeeze-Evolve routes each step of an evolutionary inference loop to the most cost-effective model. Expensive models handle the hardest groups; cheap models handle the rest. The result: equivalent or better accuracy at a fraction of the cost.
 
 <p align="center">
-  <a href="https://github.com/ai-dynamo/dynamo/tree/main/components/src/dynamo/squeeze_evolve"><img src="assets/logos/nvidia.svg" height="64" alt="NVIDIA Dynamo"></a>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="#use-it-in-claude-code"><img src="assets/logos/claude-code.svg" height="64" alt="Claude Code"></a>
+  <a href="https://github.com/ai-dynamo/dynamo/tree/main/components/src/dynamo/squeeze_evolve"><img src="assets/logos/nvidia-dynamo-lockup.svg" height="72" alt="NVIDIA Dynamo"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="#use-it-in-claude-code"><img src="assets/logos/claude-code-lockup.svg" height="72" alt="Claude Code"></a>
 </p>
 
 > **Now integrated into [NVIDIA Dynamo](https://github.com/ai-dynamo/dynamo)** — Squeeze-Evolve ships as the [`dynamo.squeeze_evolve`](https://github.com/ai-dynamo/dynamo/tree/main/components/src/dynamo/squeeze_evolve) component for datacenter-scale serving. Also available as a [Claude Code plugin](#use-it-in-claude-code).
