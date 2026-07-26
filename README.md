@@ -7,17 +7,16 @@
 <p align="center">
   <a href="https://squeeze-evolve.github.io/"><img src="https://img.shields.io/badge/Project-Website-blue?style=flat-square&logo=googlechrome&logoColor=white" alt="Website"></a>
   <a href="https://arxiv.org/abs/2604.07725"><img src="https://img.shields.io/badge/arXiv-2604.07725-b31b1b?style=flat-square&logo=arxiv&logoColor=white" alt="Paper"></a>
-  <a href="https://colmweb.org/"><img src="https://img.shields.io/badge/COLM-2026-6f42c1?style=flat-square" alt="COLM 2026"></a>
 </p>
 
 <p align="center">
-  🎉 <b>The Squeeze-Evolve paper has been accepted to <a href="https://colmweb.org/">COLM 2026</a>!</b>
+  🎉 <b>Accepted at <a href="https://colmweb.org/">COLM 2026</a>!</b>
 </p>
 
 <p align="center">
-  <a href="#use-it-in-nvidia-dynamo"><img src="assets/logos/nvidia-dynamo-lockup.svg" height="72" alt="NVIDIA Dynamo"></a>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="#use-it-in-claude-code"><img src="assets/logos/claude-code-lockup.svg" height="72" alt="Claude Code"></a>
+  <a href="#use-it-in-nvidia-dynamo"><img src="assets/logos/nvidia-dynamo-lockup.svg" height="56" alt="NVIDIA Dynamo"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="#use-it-in-claude-code"><img src="assets/logos/claude-code-lockup.svg" height="56" alt="Claude Code"></a>
 </p>
 
 <p align="center">
