@@ -15,11 +15,13 @@
 </p>
 
 <p align="center">
+  <a href="https://colmweb.org/"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/logos/colm-2026-lockup-dark.svg"><img src="assets/logos/colm-2026-lockup.svg" height="72" alt="COLM 2026"></picture></a>
+</p>
+
+<p align="center">
   <a href="#use-it-in-nvidia-dynamo"><img src="assets/logos/nvidia-dynamo-lockup.svg" height="72" alt="NVIDIA Dynamo"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
   <a href="#use-it-in-claude-code"><img src="assets/logos/claude-code-lockup.svg" height="72" alt="Claude Code"></a>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://colmweb.org/"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/logos/colm-2026-lockup-dark.svg"><img src="assets/logos/colm-2026-lockup.svg" height="72" alt="COLM 2026"></picture></a>
 </p>
 
 <p align="center">
